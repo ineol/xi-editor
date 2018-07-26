@@ -850,6 +850,8 @@ impl Editor {
             DuplicateLine => self.duplicate_line(view, config),
             IncreaseNumber => self.change_number(view, |s| s.checked_add(1)),
             DecreaseNumber => self.change_number(view, |s| s.checked_sub(1)),
+            CompletionsInsert { index } =>
+                eprintln!("completions insert ({})", index),
         }
     }
 

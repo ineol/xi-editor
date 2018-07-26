@@ -19,6 +19,7 @@ use std::ops::Range;
 use serde_json::Value;
 
 use client::Client;
+use completions::CompletionState;
 use edit_types::ViewEvent;
 use find::{Find, FindStatus};
 use line_cache_shadow::{self, LineCacheShadow, RenderPlan, RenderTactic};
@@ -67,6 +68,9 @@ pub struct View {
 
     /// New offset to be scrolled into position after an edit.
     scroll_to: Option<usize>,
+
+    completions: Option<CompletionState>,
+    counter: Counter,
 
     /// The state for finding text for this view.
     /// Each instance represents a separate search query.
@@ -175,6 +179,8 @@ impl View {
             breaks: None,
             wrap_col: WrapWidth::None,
             lc_shadow: LineCacheShadow::default(),
+            completions: None,
+            counter: Counter::default(),
             find: Vec::new(),
             find_id_counter: Counter::default(),
             find_changed: FindStatusChange::None,
@@ -202,6 +208,28 @@ impl View {
 
     pub(crate) fn has_pending_render(&self) -> bool {
         self.pending_render
+    }
+
+    pub(crate) fn can_show_completions(&self) -> bool {
+        self.sel_regions().len() == 1
+        && self.sel_regions()[0].is_caret()
+        && self.completions.is_none()
+    }
+
+    pub(crate) fn prepare_completions(&mut self, rev: u64) -> &mut CompletionState {
+        assert!(self.can_show_completions());
+
+        let state = CompletionState::new(
+            self.counter.next(),
+            self.sel_regions()[0].start,
+            rev);
+
+        self.completions = Some(state);
+        self.completions.as_mut().unwrap()
+    }
+
+    pub(crate) fn get_completion_state(&mut self) -> Option<&mut CompletionState> {
+        self.completions.as_mut()
     }
 
     pub(crate) fn do_edit(&mut self, text: &Rope, cmd: ViewEvent) {
@@ -255,6 +283,8 @@ impl View {
             Replace { chars, preserve_case } => self.do_set_replace(chars, preserve_case),
             SelectionForReplace => self.do_selection_for_replace(text),
             SelectionIntoLines => self.do_split_selection_into_lines(text),
+      		CompletionsCancel =>
+                eprintln!("completions_cancel not implemented"),
         }
     }
 
@@ -282,6 +312,10 @@ impl View {
             self.collapse_selections(text);
         } else {
             self.unset_find();
+        }
+
+        if let Some(completions) = self.completions.as_mut() {
+            completions.cancel();
         }
     }
 
@@ -829,6 +863,21 @@ impl View {
         if let Some(new_scroll_pos) = self.scroll_to.take() {
             let (line, col) = self.offset_to_line_col(text, new_scroll_pos);
             client.scroll_to(self.view_id, line, col);
+        }
+
+        if self.completions.as_ref().map(|c| c.is_dirty).unwrap_or(false) {
+            self.send_completions(client)
+        }
+    }
+
+    fn send_completions(&mut self, client: &Client) {
+        if self.completions.as_ref().map(|c| c.is_cancelled).unwrap_or(false) {
+            self.completions = None;
+            client.hide_completions(self.view_id);
+        } else {
+            let completions = self.completions.as_ref().unwrap();
+            let (pos, selected, completions) = completions.client_completions();
+            client.completions(self.view_id, pos, selected, completions)
         }
     }
 

@@ -19,6 +19,7 @@ use std::time::Instant;
 use serde_json::{self, Value};
 use xi_rpc::{self, RpcPeer};
 
+use completions::ClientCompletionItem;
 use config::Table;
 use plugins::rpc::ClientPluginInfo;
 use plugins::Command;
@@ -241,5 +242,23 @@ impl Client {
 
     pub fn schedule_timer(&self, timeout: Instant, token: usize) {
         self.0.schedule_timer(timeout, token);
+    }
+
+    /// if `completions` is present but empty, a 'no completions available' message
+    /// should be shown.
+    pub fn completions(&self, view_id: ViewId, pos: usize, selected: usize,
+                       completions: Vec<ClientCompletionItem>) {
+        self.0.send_rpc_notification("completions",
+                                     &json!({
+                                         "view_id": view_id,
+                                         "pos": pos,
+                                         "selected": selected,
+                                         "items": completions,
+                                     }))
+    }
+
+    pub fn hide_completions(&self, view_id: ViewId) {
+        self.0.send_rpc_notification("hide_completions",
+                                     &json!({"view_id": view_id}))
     }
 }

@@ -110,6 +110,7 @@ pub enum HostNotification {
     NewBuffer { buffer_info: Vec<PluginBufferInfo> },
     DidClose { view_id: ViewId },
     GetHover { view_id: ViewId, request_id: usize, position: usize },
+    Completions { view_id: ViewId, request_id: usize, pos: usize },
     Shutdown(EmptyStruct),
     TracingConfig { enabled: bool },
     LanguageChanged { view_id: ViewId, new_lang: LanguageId },
@@ -163,6 +164,55 @@ pub enum TextUnit {
     Line,
 }
 
+/// A suggestion to be displayed in the autocomplete menu.
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct CompletionItem {
+    /// A token used to identify this completion item to its source.
+    /// This is passed back to the source when a 'resolve' request occurs.
+    pub id: usize,
+
+    /// The label of this completion item. By default
+    /// also the text that is inserted when selecting
+    /// this completion.
+    pub label: String,
+
+    //TODO: we want something like this at some point, but let's hold off for now
+    ///// The kind of this completion item. Based of the kind
+    ///// an icon is chosen by the editor.
+    //pub kind: Option<usize>,
+
+    /// A human-readable string with additional information
+    /// about this item, like type or symbol information.
+    pub detail: Option<String>,
+
+    /// A human-readable string that represents a doc-comment.
+    pub documentation: Option<String>,
+
+    /// A string that shoud be used when comparing this item
+    /// with other items.
+    pub sort_text: Option<String>,
+
+    /// A string that should be used when filtering a set of
+    /// completion items.
+    pub filter_text: Option<String>,
+
+    /// An optional delta that will be applied when this item is accepted.
+    /// If present, this will be used instead of `insert_text` or `label`.
+    pub edit: Option<RopeDelta>,
+}
+
+
+/// Returned from a plugin in response to a `completions` RPC.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CompletionResponse {
+    /// if `true`, this plugin should be requeried as the user types.
+    pub is_incomplete: bool,
+    /// If `true`, the plugin should be sent a 'resolve' request when the user
+    /// selects a completion item.
+    pub can_resolve: bool,
+    pub items: Vec<CompletionItem>,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "method", content = "params")]
@@ -181,6 +231,7 @@ pub enum PluginNotification {
     AddScopes { scopes: Vec<Vec<String>> },
     UpdateSpans { start: usize, len: usize, spans: Vec<ScopeSpan>, rev: u64 },
     Edit { edit: PluginEdit },
+    Completions { request_id: usize, response: Result<CompletionResponse, RemoteError> },
     Alert { msg: String },
     AddStatusItem { key: String, value: String, alignment: String },
     UpdateStatusItem { key: String, value: String },

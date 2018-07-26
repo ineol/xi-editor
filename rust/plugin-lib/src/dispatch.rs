@@ -126,6 +126,11 @@ impl<'a, P: 'a + Plugin> Dispatcher<'a, P> {
         self.views.remove(&view_id);
     }
 
+    fn do_completions(&mut self, view_id: ViewId, request_id: usize, pos: usize) {
+        let v = bail!(self.views.get_mut(&view_id), "completions", self.pid, view_id);
+        self.plugin.completions(v, request_id, pos)
+    }
+
     fn do_shutdown(&mut self) {
         info!("rust plugin lib does not shutdown");
         //TODO: handle shutdown
@@ -203,6 +208,8 @@ impl<'a, P: Plugin> RpcHandler for Dispatcher<'a, P> {
             }
             LanguageChanged { view_id, new_lang } => self.do_language_changed(view_id, new_lang),
             Ping(..) => (),
+            Completions { view_id, request_id, pos } =>
+                self.do_completions(view_id, request_id, pos),
         }
     }
 

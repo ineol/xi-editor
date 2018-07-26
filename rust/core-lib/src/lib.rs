@@ -71,6 +71,7 @@ use ledger_includes::*;
 
 pub mod backspace;
 pub mod client;
+pub mod completions;
 pub mod config;
 pub mod core;
 pub mod edit_types;
