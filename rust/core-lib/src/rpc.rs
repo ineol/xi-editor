@@ -472,8 +472,12 @@ pub enum EditNotification {
     DebugPrintSpans,
     CompletionsShow,
     CompletionsCancel,
-    CompletionsSelect { index: usize },
-    CompletionsInsert { index: usize },
+    CompletionsSelect {
+        index: usize,
+    },
+    CompletionsInsert {
+        index: usize,
+    },
     CancelOperation,
     Uppercase,
     Lowercase,

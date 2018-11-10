@@ -214,7 +214,8 @@ impl ScopeLayer {
                         false
                     }
                     _ => true,
-                }).map(|s| s.unwrap())
+                })
+                .map(|s| s.unwrap())
                 .collect::<Vec<_>>();
             stacks.push(scopes);
         }

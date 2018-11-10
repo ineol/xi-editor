@@ -47,7 +47,7 @@ pub fn current_tid() -> Result<u64, libc::c_int> {
         fn thrd_get_zx_handle(thread: thrd_t) -> zx_handle_t;
         fn thrd_current() -> thrd_t;
     }
-
+    
     Ok(thrd_get_zx_handle(thrd_current()) as u64)
     */
     Ok(0)
@@ -61,20 +61,16 @@ pub fn current_tid() -> Result<u64, libc::c_int> {
 
 // TODO: maybe use https://github.com/alexcrichton/cfg-if to simplify this?
 // pthread-based fallback
-#[cfg(
-    all(
-        target_family = "unix",
-        not(
-            any(
-                target_os = "macos",
-                target_os = "ios",
-                target_os = "linux",
-                target_os = "android",
-                target_os = "fuchsia"
-            )
-        )
-    )
-)]
+#[cfg(all(
+    target_family = "unix",
+    not(any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "linux",
+        target_os = "android",
+        target_os = "fuchsia"
+    ))
+))]
 pub fn current_tid() -> Result<u64, libc::c_int> {
     unsafe { Ok(libc::pthread_self() as u64) }
 }

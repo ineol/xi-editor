@@ -16,12 +16,14 @@ use serde::Deserialize;
 use serde_json::{self, Value};
 use std::path::{Path, PathBuf};
 
-use xi_core::plugin_rpc::{CompletionResponse, GetDataResponse, PluginBufferInfo, PluginEdit, ScopeSpan, TextUnit};
+use xi_core::plugin_rpc::{
+    CompletionResponse, GetDataResponse, PluginBufferInfo, PluginEdit, ScopeSpan, TextUnit,
+};
 use xi_core::{BufferConfig, ConfigTable, LanguageId, PluginPid, ViewId};
 use xi_rope::interval::IntervalBounds;
 use xi_rope::RopeDelta;
+use xi_rpc::{RemoteError, RpcPeer};
 use xi_trace::trace_block;
-use xi_rpc::{RpcPeer, RemoteError};
 
 use super::{Cache, DataSource, Error};
 
@@ -195,8 +197,7 @@ impl<C: Cache> View<C> {
         self.peer.request_is_pending()
     }
 
-    pub fn completions(&self, id: usize, response: Result<CompletionResponse, RemoteError>)
-    {
+    pub fn completions(&self, id: usize, response: Result<CompletionResponse, RemoteError>) {
         let params = json!({
             "view_id": self.view_id,
             "plugin_id": self.plugin_id,

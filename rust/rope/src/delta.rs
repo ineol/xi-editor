@@ -442,7 +442,8 @@ impl<N: NodeInfo> InsertDelta<N> {
                     DeltaElement::Copy(m.doc_index_to_subset(b), m.doc_index_to_subset(e))
                 }
                 DeltaElement::Insert(ref n) => DeltaElement::Insert(n.clone()),
-            }).collect();
+            })
+            .collect();
         InsertDelta(Delta { els, base_len: xform.len_after_delete() })
     }
 

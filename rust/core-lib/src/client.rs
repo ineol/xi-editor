@@ -246,19 +246,25 @@ impl Client {
 
     /// if `completions` is present but empty, a 'no completions available' message
     /// should be shown.
-    pub fn completions(&self, view_id: ViewId, pos: usize, selected: usize,
-                       completions: Vec<ClientCompletionItem>) {
-        self.0.send_rpc_notification("completions",
-                                     &json!({
+    pub fn completions(
+        &self,
+        view_id: ViewId,
+        pos: usize,
+        selected: usize,
+        completions: Vec<ClientCompletionItem>,
+    ) {
+        self.0.send_rpc_notification(
+            "completions",
+            &json!({
                                          "view_id": view_id,
                                          "pos": pos,
                                          "selected": selected,
                                          "items": completions,
-                                     }))
+                                     }),
+        )
     }
 
     pub fn hide_completions(&self, view_id: ViewId) {
-        self.0.send_rpc_notification("hide_completions",
-                                     &json!({"view_id": view_id}))
+        self.0.send_rpc_notification("hide_completions", &json!({ "view_id": view_id }))
     }
 }

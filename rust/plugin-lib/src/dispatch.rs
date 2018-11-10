@@ -208,8 +208,9 @@ impl<'a, P: Plugin> RpcHandler for Dispatcher<'a, P> {
             }
             LanguageChanged { view_id, new_lang } => self.do_language_changed(view_id, new_lang),
             Ping(..) => (),
-            Completions { view_id, request_id, pos } =>
-                self.do_completions(view_id, request_id, pos),
+            Completions { view_id, request_id, pos } => {
+                self.do_completions(view_id, request_id, pos)
+            }
         }
     }
 

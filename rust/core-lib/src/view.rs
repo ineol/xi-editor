@@ -212,17 +212,14 @@ impl View {
 
     pub(crate) fn can_show_completions(&self) -> bool {
         self.sel_regions().len() == 1
-        && self.sel_regions()[0].is_caret()
-        && self.completions.is_none()
+            && self.sel_regions()[0].is_caret()
+            && self.completions.is_none()
     }
 
     pub(crate) fn prepare_completions(&mut self, rev: u64) -> &mut CompletionState {
         assert!(self.can_show_completions());
 
-        let state = CompletionState::new(
-            self.counter.next(),
-            self.sel_regions()[0].start,
-            rev);
+        let state = CompletionState::new(self.counter.next(), self.sel_regions()[0].start, rev);
 
         self.completions = Some(state);
         self.completions.as_mut().unwrap()
@@ -283,8 +280,7 @@ impl View {
             Replace { chars, preserve_case } => self.do_set_replace(chars, preserve_case),
             SelectionForReplace => self.do_selection_for_replace(text),
             SelectionIntoLines => self.do_split_selection_into_lines(text),
-      		CompletionsCancel =>
-                eprintln!("completions_cancel not implemented"),
+            CompletionsCancel => eprintln!("completions_cancel not implemented"),
         }
     }
 
@@ -615,7 +611,8 @@ impl View {
                     start_of_line.set(pos)
                 }
                 pos
-            }).unwrap_or(text.len());
+            })
+            .unwrap_or(text.len());
 
         let l_str = text.slice_to_cow(start_pos..pos);
         let mut cursors = Vec::new();

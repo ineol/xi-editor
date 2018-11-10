@@ -20,13 +20,13 @@ extern crate xi_plugin_lib;
 extern crate xi_rope;
 extern crate xi_rpc;
 
-use std::path::{Path, PathBuf};
 use std::fs::DirEntry;
+use std::path::{Path, PathBuf};
 
+use xi_core::plugin_rpc::{CompletionItem, CompletionResponse};
 use xi_core::ConfigTable;
 use xi_plugin_lib::{mainloop, ChunkCache, Error, Plugin, View};
 use xi_rope::delta::Builder as EditBuilder;
-use xi_core::plugin_rpc::{CompletionResponse, CompletionItem};
 use xi_rope::interval::Interval;
 use xi_rope::rope::RopeDelta;
 
@@ -80,12 +80,11 @@ impl Plugin for SamplePlugin {
     /// If the word under the cursor resembles a file path, this fn will attempt to
     /// locate that path and find subitems, which it will return as completion suggestions.
     fn completions(&mut self, view: &mut View<Self::Cache>, request_id: usize, pos: usize) {
-        let response = self.path_completions(view, pos)
-            .map(|items| CompletionResponse {
-                is_incomplete: false,
-                can_resolve: false,
-                items,
-            });
+        let response = self.path_completions(view, pos).map(|items| CompletionResponse {
+            is_incomplete: false,
+            can_resolve: false,
+            items,
+        });
 
         view.completions(request_id, response)
     }
@@ -122,17 +121,17 @@ impl SamplePlugin {
     }
 
     /// Attempts to find file path completion suggestions.
-    fn path_completions(&self, view: &mut View<ChunkCache>,
-                        pos: usize) -> Result<Vec<CompletionItem>, RemoteError> {
+    fn path_completions(
+        &self,
+        view: &mut View<ChunkCache>,
+        pos: usize,
+    ) -> Result<Vec<CompletionItem>, RemoteError> {
         let (word_start, word) = self.get_word_at_offset(view, pos);
         if word.contains('/') {
             let path = self.normalize_path(view.get_path(), &word);
-            let parent = if path.is_dir() {
-                Some(path.as_path())
-            } else {
-                path.parent()
-            };
-            let children = parent.map(|p| self.get_contents(p))
+            let parent = if path.is_dir() { Some(path.as_path()) } else { path.parent() };
+            let children = parent
+                .map(|p| self.get_contents(p))
                 .ok_or_else(|| RemoteError::custom(420, "not a dir", None))?;
             let result = self.make_completions(view, children, &word, word_start);
             Ok(result)
@@ -143,31 +142,38 @@ impl SamplePlugin {
 
     /// Given a word to complete and a list of viable paths to suggest,
     /// constructs `CompletionItem`s.
-    fn make_completions(&self, view: &View<ChunkCache>, children: Vec<DirEntry>,
-                        word: &str, word_off: usize) -> Vec<CompletionItem> {
-        children.iter()
+    fn make_completions(
+        &self,
+        view: &View<ChunkCache>,
+        children: Vec<DirEntry>,
+        word: &str,
+        word_off: usize,
+    ) -> Vec<CompletionItem> {
+        children
+            .iter()
             .map(|child| {
                 let label: String = child.file_name().to_string_lossy().into();
                 let mut completion = CompletionItem::with_label(&label);
                 if let Some(last_path_cmp_offset) = word.rfind('/') {
                     let delta = RopeDelta::simple_edit(
-                        Interval::new_open_closed(word_off + last_path_cmp_offset, word_off + word.len()),
+                        Interval::new_open_closed(
+                            word_off + last_path_cmp_offset,
+                            word_off + word.len(),
+                        ),
                         label.into(),
-                        view.get_buf_size());
+                        view.get_buf_size(),
+                    );
                     completion.edit = Some(delta);
                 }
                 completion
             })
-        .collect()
+            .collect()
     }
 
     // NOTE: don't do this
     fn get_contents(&self, path: &Path) -> Vec<DirEntry> {
-        let contents: Vec<DirEntry> = path.read_dir()
-            .ok()
-            .map(|d| d.flat_map(|e| e.ok())
-            .collect())
-            .unwrap_or_default();
+        let contents: Vec<DirEntry> =
+            path.read_dir().ok().map(|d| d.flat_map(|e| e.ok()).collect()).unwrap_or_default();
         eprintln!("found {} items in {:?}", contents.len(), &path);
         contents
     }
@@ -185,9 +191,7 @@ impl SamplePlugin {
         }
     }
 
-    fn get_word_at_offset(&self, view: &mut View<ChunkCache>,
-                          offset: usize) -> (usize, String) {
-
+    fn get_word_at_offset(&self, view: &mut View<ChunkCache>, offset: usize) -> (usize, String) {
         let line_nb = view.line_of_offset(offset).unwrap();
         let line_start = view.offset_of_line(line_nb).unwrap();
 
@@ -205,11 +209,17 @@ impl SamplePlugin {
             }
         }
 
-        let word = view.get_line(line_nb)
-            .map(|s| s[word_start..offset-line_start].trim().to_string())
+        let word = view
+            .get_line(line_nb)
+            .map(|s| s[word_start..offset - line_start].trim().to_string())
             .unwrap();
-        eprintln!("using word '{}' at line {} ({}..{})", &word, line_nb,
-                  word_start, offset-line_start);
+        eprintln!(
+            "using word '{}' at line {} ({}..{})",
+            &word,
+            line_nb,
+            word_start,
+            offset - line_start
+        );
         (word_start + line_start, word)
     }
 }

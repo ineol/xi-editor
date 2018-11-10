@@ -177,8 +177,7 @@ pub trait Plugin {
     fn language_changed(&mut self, view: &mut View<Self::Cache>, old_lang: LanguageId) {}
 
     #[allow(unused_variables)]
-    fn completions(&mut self, view: &mut View<Self::Cache>,
-                   request_id: usize, pos: usize) { }
+    fn completions(&mut self, view: &mut View<Self::Cache>, request_id: usize, pos: usize) {}
 
     /// Called when the runloop is idle, if the plugin has previously
     /// asked to be scheduled via `View::schedule_idle()`. Plugins that

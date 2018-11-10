@@ -198,7 +198,8 @@ pub fn start_new_server(
                         Err(err) => error!("Error occurred {:?}", err),
                     };
                 }
-            }).unwrap();
+            })
+            .unwrap();
     }
 
     Ok(language_server_client)

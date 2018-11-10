@@ -165,7 +165,7 @@ pub enum TextUnit {
 }
 
 /// A suggestion to be displayed in the autocomplete menu.
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct CompletionItem {
     /// A token used to identify this completion item to its source.
     /// This is passed back to the source when a 'resolve' request occurs.
@@ -180,7 +180,6 @@ pub struct CompletionItem {
     ///// The kind of this completion item. Based of the kind
     ///// an icon is chosen by the editor.
     //pub kind: Option<usize>,
-
     /// A human-readable string with additional information
     /// about this item, like type or symbol information.
     pub detail: Option<String>,
@@ -201,9 +200,8 @@ pub struct CompletionItem {
     pub edit: Option<RopeDelta>,
 }
 
-
 /// Returned from a plugin in response to a `completions` RPC.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CompletionResponse {
     /// if `true`, this plugin should be requeried as the user types.
     pub is_incomplete: bool,

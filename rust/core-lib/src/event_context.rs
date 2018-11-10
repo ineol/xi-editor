@@ -26,9 +26,10 @@ use xi_rpc::{Error as RpcError, RemoteError};
 use xi_trace::trace_block;
 
 use plugins::rpc::{
-    ClientPluginInfo, Hover, PluginBufferInfo, PluginNotification, PluginRequest, PluginUpdate,
+    ClientPluginInfo, CompletionResponse, Hover, PluginBufferInfo, PluginNotification,
+    PluginRequest, PluginUpdate,
 };
-use rpc::{CompletionResponse, EditNotification, EditRequest, LineRange, Position as ClientPosition};
+use rpc::{EditNotification, EditRequest, LineRange, Position as ClientPosition};
 
 use config::{BufferItems, Table};
 use styles::ThemeStyleMap;
@@ -199,9 +200,9 @@ impl<'a> EventContext<'a> {
             SpecialEvent::ClearRecording(recording_name) => {
                 let mut recorder = self.recorder.borrow_mut();
                 recorder.clear(&recording_name);
+            }
             SpecialEvent::CompletionsShow => self.do_show_completions(),
-            SpecialEvent::CompletionsSelect { index } =>
-                eprintln!("completion select ({})", index),
+            SpecialEvent::CompletionsSelect { index } => eprintln!("completion select ({})", index),
         }
     }
 
@@ -238,8 +239,9 @@ impl<'a> EventContext<'a> {
             }
             RemoveStatusItem { key } => self.client.remove_status_item(self.view_id, &key),
             ShowHover { request_id, result } => self.do_show_hover(request_id, result),
-            Completions { request_id, response } =>
-                self.do_completions_response(plugin, request_id, response),
+            Completions { request_id, response } => {
+                self.do_completions_response(plugin, request_id, response)
+            }
         };
         self.after_edit(&plugin.to_string());
         self.render_if_needed();
@@ -513,22 +515,24 @@ impl<'a> EventContext<'a> {
     }
 
     fn do_show_completions(&self) {
-        if !self.view.borrow().can_show_completions() { return }
+        if !self.view.borrow().can_show_completions() {
+            return;
+        }
         let rev = self.editor.borrow().get_head_rev_token();
         let mut view = self.view.borrow_mut();
         let state = view.prepare_completions(rev);
-        self.plugins.iter()
-            .for_each(|plug| {
-                state.add_pending(plug.id);
-                plug.completions(self.view_id, state.id, state.pos);
-            });
+        self.plugins.iter().for_each(|plug| {
+            state.add_pending(plug.id);
+            plug.completions(self.view_id, state.id, state.pos);
+        });
     }
 
-    fn do_completions_response(&self,
-                               plugin: PluginId,
-                               completion_id: usize,
-                               result: Result<CompletionResponse, RemoteError>)
-    {
+    fn do_completions_response(
+        &self,
+        plugin: PluginId,
+        completion_id: usize,
+        result: Result<CompletionResponse, RemoteError>,
+    ) {
         if let Some(state) = self.view.borrow_mut().get_completion_state() {
             if state.id == completion_id {
                 state.handle_response(plugin, result)

@@ -16,8 +16,8 @@ use std::collections::{HashMap, HashSet};
 
 use xi_rpc::RemoteError;
 
-use plugins::PluginId;
 use plugins::rpc::{CompletionItem, CompletionResponse};
+use plugins::PluginId;
 
 #[derive(Debug)]
 struct CompletionSource {
@@ -74,11 +74,12 @@ impl CompletionState {
         self.is_dirty = true
     }
 
-    pub(crate) fn handle_response(&mut self, plugin: PluginId,
-                                  response: Result<CompletionResponse, RemoteError>)
-    {
-        let is_last_response = self.pending.remove(&plugin)
-            && self.pending.is_empty();
+    pub(crate) fn handle_response(
+        &mut self,
+        plugin: PluginId,
+        response: Result<CompletionResponse, RemoteError>,
+    ) {
+        let is_last_response = self.pending.remove(&plugin) && self.pending.is_empty();
         match response {
             Ok(response) => {
                 let source = CompletionSource {
@@ -87,7 +88,10 @@ impl CompletionState {
                     can_resolve: response.can_resolve,
                 };
                 self.sources.insert(plugin, source);
-                eprintln!("got completions {:?}", response.items.iter().map(|i| i.label.clone()).collect::<Vec<_>>());
+                eprintln!(
+                    "got completions {:?}",
+                    response.items.iter().map(|i| i.label.clone()).collect::<Vec<_>>()
+                );
                 self.items.extend(response.items.into_iter().map(|i| (i, plugin)));
                 self.sort_items();
                 self.is_dirty = true;
@@ -105,9 +109,7 @@ impl CompletionState {
     /// The start offset of the text being completed, the index of the selected
     /// completion item, and the completions themselves.
     pub(crate) fn client_completions(&self) -> (usize, usize, Vec<ClientCompletionItem>) {
-        let items = self.items.iter()
-            .map(|(item, _)| item.get_client_item())
-            .collect::<Vec<_>>();
+        let items = self.items.iter().map(|(item, _)| item.get_client_item()).collect::<Vec<_>>();
         (self.pos, self.selected, items)
     }
 
@@ -134,9 +136,7 @@ impl CompletionItem {
     }
 
     fn sort_key(&self) -> &str {
-        self.sort_text.as_ref()
-            .map(String::as_str)
-            .unwrap_or(self.label.as_str())
+        self.sort_text.as_ref().map(String::as_str).unwrap_or(self.label.as_str())
     }
 
     fn get_client_item(&self) -> ClientCompletionItem {
