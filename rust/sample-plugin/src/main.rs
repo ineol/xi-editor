@@ -29,6 +29,7 @@ use xi_plugin_lib::{mainloop, ChunkCache, Error, Plugin, View};
 use xi_rope::delta::Builder as EditBuilder;
 use xi_rope::interval::Interval;
 use xi_rope::rope::RopeDelta;
+use xi_rpc::RemoteError;
 
 /// A type that implements the `Plugin` trait, and interacts with xi-core.
 ///
@@ -156,7 +157,7 @@ impl SamplePlugin {
                 let mut completion = CompletionItem::with_label(&label);
                 if let Some(last_path_cmp_offset) = word.rfind('/') {
                     let delta = RopeDelta::simple_edit(
-                        Interval::new_open_closed(
+                        Interval::new(
                             word_off + last_path_cmp_offset,
                             word_off + word.len(),
                         ),
