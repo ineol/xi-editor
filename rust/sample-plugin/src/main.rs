@@ -81,7 +81,7 @@ impl Plugin for SamplePlugin {
     /// If the word under the cursor resembles a file path, this fn will attempt to
     /// locate that path and find subitems, which it will return as completion suggestions.
     fn completions(&mut self, view: &mut View<Self::Cache>, request_id: usize, pos: usize) {
-        let response = self.path_completions(view, pos).map(|items| CompletionResponse {
+        let response = self.word_completions(view, pos).map(|items| CompletionResponse {
             is_incomplete: false,
             can_resolve: false,
             items,
@@ -121,24 +121,22 @@ impl SamplePlugin {
         Ok(())
     }
 
+    fn complete_word(word: &str, text: &str) -> Vec<String> {
+        text.split(|c| !char::is_alphanumeric(c))
+            .filter(|w| w.starts_with(&word))
+            .map(|s| s.to_owned())
+            .collect()
+    }
+
     /// Attempts to find file path completion suggestions.
-    fn path_completions(
+    fn word_completions(
         &self,
         view: &mut View<ChunkCache>,
         pos: usize,
     ) -> Result<Vec<CompletionItem>, RemoteError> {
         let (word_start, word) = self.get_word_at_offset(view, pos);
-        if word.contains('/') {
-            let path = self.normalize_path(view.get_path(), &word);
-            let parent = if path.is_dir() { Some(path.as_path()) } else { path.parent() };
-            let children = parent
-                .map(|p| self.get_contents(p))
-                .ok_or_else(|| RemoteError::custom(420, "not a dir", None))?;
-            let result = self.make_completions(view, children, &word, word_start);
-            Ok(result)
-        } else {
-            Err(RemoteError::custom(420, "not path-like", None))
-        }
+        let completions = Self::complete_word(&word, &view.get_document().unwrap()); // XXX
+        Ok(self.make_completions(view, completions, &word, word_start))
     }
 
     /// Given a word to complete and a list of viable paths to suggest,
@@ -146,50 +144,26 @@ impl SamplePlugin {
     fn make_completions(
         &self,
         view: &View<ChunkCache>,
-        children: Vec<DirEntry>,
+        words: Vec<String>,
         word: &str,
         word_off: usize,
     ) -> Vec<CompletionItem> {
-        children
+        words
             .iter()
-            .map(|child| {
-                let label: String = child.file_name().to_string_lossy().into();
-                let mut completion = CompletionItem::with_label(&label);
-                if let Some(last_path_cmp_offset) = word.rfind('/') {
-                    let delta = RopeDelta::simple_edit(
-                        Interval::new(
-                            word_off + last_path_cmp_offset,
-                            word_off + word.len(),
-                        ),
-                        label.into(),
-                        view.get_buf_size(),
-                    );
-                    completion.edit = Some(delta);
-                }
+            .map(|w| {
+                let mut completion = CompletionItem::with_label(w);
+                let delta = RopeDelta::simple_edit(
+                    Interval::new(
+                        word_off,   // XXX  start at begining of word or completion point?
+                        word_off + word.len(),
+                     ),
+                     w.into(),
+                     view.get_buf_size(),
+                );
+                completion.edit = Some(delta);
                 completion
             })
             .collect()
-    }
-
-    // NOTE: don't do this
-    fn get_contents(&self, path: &Path) -> Vec<DirEntry> {
-        let contents: Vec<DirEntry> =
-            path.read_dir().ok().map(|d| d.flat_map(|e| e.ok()).collect()).unwrap_or_default();
-        eprintln!("found {} items in {:?}", contents.len(), &path);
-        contents
-    }
-
-    fn normalize_path(&self, base: Option<&Path>, word: &str) -> PathBuf {
-        match word {
-            s if s.starts_with('/') => s.into(),
-            s if s.starts_with('~') => {
-                let home = ::std::env::home_dir().expect("everyone needs a $HOME");
-                eprintln!("$HOME: {:?}", &home);
-                home.join(s.trim_left_matches(|c| c == '~' || c == '/'))
-            }
-            s if base.is_some() => base.unwrap().join(s),
-            _ => word.into(),
-        }
     }
 
     fn get_word_at_offset(&self, view: &mut View<ChunkCache>, offset: usize) -> (usize, String) {
