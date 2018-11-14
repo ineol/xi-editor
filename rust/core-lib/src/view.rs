@@ -210,6 +210,10 @@ impl View {
         self.pending_render
     }
 
+    pub(crate) fn get_completions(&mut self) -> &mut Option<CompletionState> {
+        &mut self.completions
+    }
+
     pub(crate) fn can_show_completions(&self) -> bool {
         self.sel_regions().len() == 1
             && self.sel_regions()[0].is_caret()
@@ -280,7 +284,7 @@ impl View {
             Replace { chars, preserve_case } => self.do_set_replace(chars, preserve_case),
             SelectionForReplace => self.do_selection_for_replace(text),
             SelectionIntoLines => self.do_split_selection_into_lines(text),
-            CompletionsCancel => eprintln!("completions_cancel not implemented"),
+            CompletionsCancel => self.do_completions_cancel(),
         }
     }
 
@@ -310,14 +314,18 @@ impl View {
             self.unset_find();
         }
 
-        if let Some(completions) = self.completions.as_mut() {
-            completions.cancel();
-        }
+        self.do_completions_cancel();
     }
 
     pub(crate) fn unset_find(&mut self) {
         self.find.iter_mut().for_each(Find::unset);
         self.find.clear();
+    }
+
+    fn do_completions_cancel(&mut self) {
+        if let Some(completions) = self.completions.as_mut() {
+            completions.cancel();
+        }
     }
 
     fn goto_line(&mut self, text: &Rope, line: u64) {

@@ -196,7 +196,7 @@ pub struct CompletionItem {
     pub filter_text: Option<String>,
 
     /// An optional delta that will be applied when this item is accepted.
-    /// If present, this will be used instead of `insert_text` or `label`.
+    /// If present, this will be used instead of `label`.
     pub edit: Option<RopeDelta>,
 }
 

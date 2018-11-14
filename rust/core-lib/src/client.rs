@@ -256,11 +256,11 @@ impl Client {
         self.0.send_rpc_notification(
             "completions",
             &json!({
-                                         "view_id": view_id,
-                                         "pos": pos,
-                                         "selected": selected,
-                                         "items": completions,
-                                     }),
+                "view_id": view_id,
+                "pos": pos,
+                "selected": selected,
+                "items": completions,
+            }),
         )
     }
 

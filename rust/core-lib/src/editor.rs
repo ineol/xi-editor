@@ -850,7 +850,7 @@ impl Editor {
             DuplicateLine => self.duplicate_line(view, config),
             IncreaseNumber => self.change_number(view, |s| s.checked_add(1)),
             DecreaseNumber => self.change_number(view, |s| s.checked_sub(1)),
-            CompletionsInsert { index } => eprintln!("completions insert ({})", index),
+            CompletionsInsert { index } => self.completions_insert(view, index),
         }
     }
 
@@ -935,6 +935,32 @@ impl Editor {
         let first_line_offset = offset - text.offset_of_line(first_line);
 
         Some(GetDataResponse { chunk, offset, first_line, first_line_offset })
+    }
+
+    fn completions_insert(&mut self, view: &mut View, index: usize) {
+        info!("completion_select: index={}", index);
+        if let Some(state) = view.get_completions().as_mut() {
+            // TODO or use client_completions?
+            if index >= state.items.len() {
+                info!("frontend selected invalid index: {}", index);
+                return;
+            }
+
+            let (ref item, _plugin) = state.items[index];
+            
+            // TODO derive delta from label otherwise
+            let edit = item.edit.as_ref().expect("edit");
+            self.this_edit_type = EditType::Other;
+            self.add_delta(edit.clone());
+
+            // TODO
+            // do we mark it as cancelled? or should the front-end do that?
+            // or do we simply set the state to None?
+        } else {
+            info!("completion selected, but empty completion state");
+            return;
+        }
+        *view.get_completions() = None;
     }
 }
 

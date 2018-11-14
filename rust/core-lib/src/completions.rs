@@ -44,7 +44,7 @@ pub(crate) struct CompletionState {
     /// rev of original request?
     rev: u64,
     /// sorted
-    items: Vec<(CompletionItem, PluginId)>,
+    pub(crate) items: Vec<(CompletionItem, PluginId)>,
     selected: usize,
     /// outstanding requests related to this completion
     pending: HashSet<PluginId>,

@@ -151,13 +151,14 @@ impl Plugin {
     }
 
     pub fn completions(&self, view_id: ViewId, request_id: usize, pos: usize) {
+        info!("asking plugin for completions");
         self.peer.send_rpc_notification(
             "completions",
             &json!({
-                                             "view_id": view_id,
-                                             "pos": pos,
-                                             "request_id": request_id,
-                                         }),
+                "view_id": view_id,
+                "pos": pos,
+                "request_id": request_id,
+            }),
         )
     }
 

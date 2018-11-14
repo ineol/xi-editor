@@ -15,6 +15,9 @@
 //! A sample plugin, intended as an illustration and a template for plugin
 //! developers.
 
+#[macro_use]
+extern crate log;
+
 extern crate xi_core_lib as xi_core;
 extern crate xi_plugin_lib;
 extern crate xi_rope;
@@ -81,6 +84,7 @@ impl Plugin for SamplePlugin {
     /// If the word under the cursor resembles a file path, this fn will attempt to
     /// locate that path and find subitems, which it will return as completion suggestions.
     fn completions(&mut self, view: &mut View<Self::Cache>, request_id: usize, pos: usize) {
+        info!("completions called : pos={}", pos);
         let response = self.word_completions(view, pos).map(|items| CompletionResponse {
             is_incomplete: false,
             can_resolve: false,
@@ -122,10 +126,18 @@ impl SamplePlugin {
     }
 
     fn complete_word(word: &str, text: &str) -> Vec<String> {
-        text.split(|c| !char::is_alphanumeric(c))
-            .filter(|w| w.starts_with(&word))
-            .map(|s| s.to_owned())
-            .collect()
+        if word.len() == 0 {
+            vec![]
+        } else {
+            let mut words = text
+                .split(|c| !char::is_alphanumeric(c))
+                .filter(|w| w.starts_with(&word) && w.len() > word.len())
+                .map(|s| s.to_owned())
+                .collect::<Vec<String>>();
+            words.sort_unstable();
+            words.dedup();
+            words
+        }
     }
 
     /// Attempts to find file path completion suggestions.
@@ -135,7 +147,14 @@ impl SamplePlugin {
         pos: usize,
     ) -> Result<Vec<CompletionItem>, RemoteError> {
         let (word_start, word) = self.get_word_at_offset(view, pos);
-        let completions = Self::complete_word(&word, &view.get_document().unwrap()); // XXX
+        let doc = match view.get_document() {
+            Ok(doc) => doc,
+            Err(e) => {
+                info!("error: {:?}", e);
+                "".to_owned()
+            }
+        };
+        let completions = Self::complete_word(&word, &doc); // XXX
         Ok(self.make_completions(view, completions, &word, word_start))
     }
 
@@ -154,11 +173,11 @@ impl SamplePlugin {
                 let mut completion = CompletionItem::with_label(w);
                 let delta = RopeDelta::simple_edit(
                     Interval::new(
-                        word_off,   // XXX  start at begining of word or completion point?
+                        word_off, // XXX  start at begining of word or completion point?
                         word_off + word.len(),
-                     ),
-                     w.into(),
-                     view.get_buf_size(),
+                    ),
+                    w.into(),
+                    view.get_buf_size(),
                 );
                 completion.edit = Some(delta);
                 completion
@@ -177,11 +196,11 @@ impl SamplePlugin {
                 word_start = cur_utf8_ix;
             }
 
-            cur_utf8_ix += c.len_utf8();
-
             if line_start + cur_utf8_ix == offset {
                 break;
             }
+
+            cur_utf8_ix += c.len_utf8();
         }
 
         let word = view
@@ -199,7 +218,96 @@ impl SamplePlugin {
     }
 }
 
+use std::io;
+
+fn create_log_directory(path_with_file: &Path) -> io::Result<()> {
+    let log_dir = path_with_file.parent().ok_or_else(|| io::Error::new(
+        io::ErrorKind::InvalidInput,
+        format!(
+            "Unable to get the parent of the following Path: {}, Your path should contain a file name",
+            path_with_file.display(),
+        ),
+    ))?;
+    std::fs::create_dir_all(log_dir)?;
+    Ok(())
+}
+
+fn setup_logging(logging_path: Option<&Path>) -> Result<(), fern::InitError> {
+    let level_filter = match std::env::var("XI_LOG") {
+        Ok(level) => match level.to_lowercase().as_ref() {
+            "trace" => log::LevelFilter::Trace,
+            "debug" => log::LevelFilter::Debug,
+            _ => log::LevelFilter::Info,
+        },
+        // Default to info
+        Err(_) => log::LevelFilter::Info,
+    };
+
+    let mut fern_dispatch = fern::Dispatch::new()
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "{}[{}][{}] {}",
+                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                record.target(),
+                record.level(),
+                message,
+            ))
+        })
+        .level(level_filter)
+        .chain(io::stderr());
+
+    if let Some(logging_file_path) = logging_path {
+        create_log_directory(logging_file_path)?;
+
+        fern_dispatch = fern_dispatch.chain(fern::log_file(logging_file_path)?);
+    };
+
+    // Start fern
+    fern_dispatch.apply()?;
+    info!("Logging with fern is set up");
+
+    // Log details of the logging_file_path result using fern/log
+    // Either logging the path fern is outputting to or the error from obtaining the path
+    match logging_path {
+        Some(logging_file_path) => info!("Writing logs to: {}", logging_file_path.display()),
+        None => warn!("No path was supplied for the log file. Not saving logs to disk, falling back to just stderr"),
+    }
+    Ok(())
+}
+
+fn generate_logging_path() -> Result<PathBuf, io::Error> {
+    // Use the file name set in logfile_config or fallback to the default
+    let logfile_file_name = PathBuf::from("wordcomplete.log");
+
+    let logfile_directory_name = PathBuf::from("xi-core");
+
+    let mut logging_directory_path = get_logging_directory_path(logfile_directory_name)?;
+
+    // Add the file name & return the full path
+    logging_directory_path.push(logfile_file_name);
+    Ok(logging_directory_path)
+}
+
+fn get_logging_directory_path<P: AsRef<Path>>(directory: P) -> Result<PathBuf, io::Error> {
+    match dirs::data_local_dir() {
+        Some(mut log_dir) => {
+            log_dir.push(directory);
+            Ok(log_dir)
+        }
+        None => Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "No standard logging directory known for this platform",
+        )),
+    }
+}
+
 fn main() {
+    let logging_path_result = generate_logging_path();
+
+    let logging_path =
+        logging_path_result.as_ref().map(|p: &PathBuf| -> &Path { p.as_path() }).ok();
+    setup_logging(logging_path);
+
     let mut plugin = SamplePlugin;
     mainloop(&mut plugin).unwrap();
 }

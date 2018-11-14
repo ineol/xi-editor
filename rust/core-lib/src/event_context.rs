@@ -218,6 +218,7 @@ impl<'a> EventContext<'a> {
     }
 
     pub(crate) fn do_plugin_cmd(&mut self, plugin: PluginId, cmd: PluginNotification) {
+        info!("do_plugin_command: {:?}", cmd);
         use self::PluginNotification::*;
         match cmd {
             AddScopes { scopes } => {
@@ -515,9 +516,11 @@ impl<'a> EventContext<'a> {
     }
 
     fn do_show_completions(&self) {
+        info!("do_show_completions");
         if !self.view.borrow().can_show_completions() {
             return;
         }
+        info!("can show completions");
         let rev = self.editor.borrow().get_head_rev_token();
         let mut view = self.view.borrow_mut();
         let state = view.prepare_completions(rev);
@@ -533,6 +536,7 @@ impl<'a> EventContext<'a> {
         completion_id: usize,
         result: Result<CompletionResponse, RemoteError>,
     ) {
+        info!("do_completions_response {:?}", result);
         if let Some(state) = self.view.borrow_mut().get_completion_state() {
             if state.id == completion_id {
                 state.handle_response(plugin, result)

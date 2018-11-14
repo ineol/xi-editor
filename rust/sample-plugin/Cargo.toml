@@ -9,6 +9,10 @@ description = "An example plugin, for testing and illustration"
 [dependencies]
 serde = "1.0"
 serde_derive = "1.0"
+chrono = "0.4.5"
+fern = "0.5.6"
+log = "0.4.3"
+dirs = "1.0.4"
 
 [dependencies.xi-plugin-lib]
 path = "../plugin-lib"
